@@ -143,21 +143,52 @@ maglevInfo = (function() {
   }
 
   function renderCodeBrowser(data) {
-    renderList(data['modules'],          $('#rubyModules'));
-    renderList(data['constants'],        $('#rubyConstants'));
-    renderList(data['module_methods'],   $('#rubyModuleMethods'));
-    renderList(data['instance_methods'], $('#rubyInstanceMethods'));
-    renderList(data['ancestors'],        $('#rubyAncestors'));
-    return;
-
-    function renderList(items, ui) {
+    function renderList(items, ui, nestingBlock) {
       if (items) {
+        var nestings = [];
         ui.empty();
         $.each(items, function(n, item) {
-          $('<li>', { title: item, 'class': 'ui-widget-content' }).html(item).appendTo(ui);
+          var newItem = { item: item, element: $('<li>', { title: item, 'class': 'ui-widget-content' }).html(item) };
+          var done = false;
+
+          if (nestingBlock !== undefined) { // Defaults to no nesting
+            var nestingsCopy = nestings.concat();
+            while (nestingsCopy.length > 0 && !done) {
+              var last = nestingsCopy[nestingsCopy.length - 1];
+              if (nestingBlock(item, last.item)) {
+                // We have found a parent in the nestings. Set ourselves as last element on the level below
+                if (last.sublist === undefined) {
+                  // We are the first child of the last module. Adding a sublist
+                  last.sublist = $("<ul>");
+                  last.sublist.appendTo(last.element);
+                }
+                newItem.element.appendTo(last.sublist);
+                nestings = nestingsCopy.concat(newItem);
+                done = true;
+              }
+              nestingsCopy.pop();
+            }
+          }
+          if (!done) {
+            // We haven't found ourselves a parent. We're a toplevel element
+            nestings = [ newItem ];
+            newItem.element.appendTo(ui);
+          }
         });
       }
+      ui.parent().tree();
     }
+
+    renderList(data.modules, $('#rubyModules'), function (module, possibleParent) {
+      var parts = module.split("::");
+      parts.pop();
+      return (possibleParent === parts.join("::"));
+    });
+    renderList(data.constants,        $('#rubyConstants'));
+    renderList(data.module_methods,   $('#rubyModuleMethods'));
+    renderList(data.instance_methods, $('#rubyInstanceMethods'));
+    renderList(data.ancestors,        $('#rubyAncestors'));
+    return;
   }
 
   function setDetailViewCode(sym) {
