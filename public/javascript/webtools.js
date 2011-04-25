@@ -176,7 +176,9 @@ maglevInfo = (function() {
           }
         });
       }
-      ui.parent().tree();
+      if (nestingBlock !== undefined) {
+        ui.treeview();
+      }
     }
 
     renderList(data.modules, $('#rubyModules'), function (module, possibleParent) {
